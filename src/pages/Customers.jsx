@@ -11,13 +11,14 @@ import { printCustomerDocuments } from '../lib/print'
 
 const AT_RISK = 'At Risk of Churn'
 
-// Customers are listed by churn risk, highest percentage first; customers not rated yet go last.
+// "All customers": the newest account first. A churn category: highest churn percentage first, then newest.
 const risk = (customer) => customer.churn?.probability ?? -1
-const byRisk = (a, b) => risk(b) - risk(a) || a.full_name.localeCompare(b.full_name)
+const byNewest = (a, b) => new Date(b.created_at) - new Date(a.created_at)
+const byRisk = (a, b) => risk(b) - risk(a) || byNewest(a, b)
 
 // Churn prediction dropdown on the filter bar.
 const CHURN_FILTERS = {
-  all: { label: 'All churn predictions', match: () => true },
+  all: { label: 'All customers', match: () => true },
   at_risk: { label: 'At Risk of Churn (all)', match: (churn) => churn?.label === AT_RISK },
   valuable: { label: 'Valuable – At Risk', match: (churn) => Boolean(churn?.valuable) },
   likely: { label: 'Likely to Return', match: (churn) => churn?.label === 'Likely to Return' },
@@ -84,7 +85,7 @@ export default function Customers() {
     ? customers.filter((customer) => customer.verification_status === 'pending')
     : customers
   ).filter((customer) => CHURN_FILTERS[churnFilter].match(customer.churn))
-    .sort(byRisk)
+    .sort(churnFilter === 'all' ? byNewest : byRisk)
     .filter((customer) => matchesSearch(search, customer.full_name, customer.email, customer.phone, customer.verification_status, customer.churn?.label, customer.churn?.valuable ? 'valuable at risk' : '', standing(customer).label, customer.blacklistMatch?.reason))
 
   async function deleteCustomer(customer) {
