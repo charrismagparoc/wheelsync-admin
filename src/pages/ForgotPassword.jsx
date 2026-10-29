@@ -60,7 +60,7 @@ export default function ForgotPassword() {
           <form onSubmit={sendCode} className="card p-6 flex flex-col gap-4">
             {error && <p className="text-sm px-3 py-2 rounded-lg" style={{ background: 'rgba(251,113,133,0.12)', color: 'var(--danger)' }}>{error}</p>}
             <label className="flex flex-col gap-1 text-sm">Email
-              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="px-3 py-2.5" placeholder="admin@pardzcarrental.com" />
+              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="px-3 py-2.5" placeholder="Email" />
             </label>
             <button type="submit" disabled={busy} className="pardz-signin btn-primary py-2.5 mt-2">{busy ? 'Sending…' : 'Send code'}</button>
           </form>

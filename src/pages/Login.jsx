@@ -52,7 +52,7 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="px-3 py-2.5"
-              placeholder="admin@pardzcarrental.com"
+              placeholder="Email"
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">

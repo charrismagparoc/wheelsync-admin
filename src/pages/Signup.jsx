@@ -56,11 +56,11 @@ export default function Signup() {
             )}
             <label className="flex flex-col gap-1 text-sm">
               Full name
-              <input required value={fullName} onChange={(e) => setFullName(e.target.value)} className="px-3 py-2.5" placeholder="Juan Dela Cruz" />
+              <input required value={fullName} onChange={(e) => setFullName(e.target.value)} className="px-3 py-2.5" placeholder="Name" />
             </label>
             <label className="flex flex-col gap-1 text-sm">
               Email
-              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="px-3 py-2.5" placeholder="admin@pardzcarrental.com" />
+              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="px-3 py-2.5" placeholder="Email" />
             </label>
             <label className="flex flex-col gap-1 text-sm">
               Password
