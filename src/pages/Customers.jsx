@@ -14,7 +14,6 @@ const AT_RISK = 'At Risk of Churn'
 // Sort menu. Churn risk: highest percentage first; customers not rated yet go last.
 const risk = (customer) => customer.churn?.probability ?? -1
 const SORTS = {
-  risk: { label: 'Highest risk', compare: (a, b) => risk(b) - risk(a) || a.full_name.localeCompare(b.full_name) },
   risk_low: { label: 'Lowest risk', compare: (a, b) => (risk(a) < 0) - (risk(b) < 0) || risk(a) - risk(b) || a.full_name.localeCompare(b.full_name) },
   name: { label: 'Name (A–Z)', compare: (a, b) => a.full_name.localeCompare(b.full_name) },
   newest: { label: 'Newest', compare: (a, b) => new Date(b.created_at) - new Date(a.created_at) },
@@ -55,7 +54,7 @@ export default function Customers() {
   const [savingVerification, setSavingVerification] = useState(false)
   const [needsReviewOnly, setNeedsReviewOnly] = useState(false)
   const [churnFilter, setChurnFilter] = useState('all') // churn prediction dropdown
-  const [sortBy, setSortBy] = useState('risk') // risk = highest churn risk first
+  const [sortBy, setSortBy] = useState('newest')
   const [search, setSearch] = useState('')
   const [showChurnInfo, setShowChurnInfo] = useState(false)
 
