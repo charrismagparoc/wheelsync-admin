@@ -10,7 +10,7 @@ import { matchesSearch } from '../lib/search'
 const AREAS = { CDO: 'Cagayan de Oro', CEB: 'Cebu', DVO: 'Davao' }
 const SOURCES = { RN: 'RN (as written on the list)', FB: 'Facebook' }
 const REASONS = ['Bad Renter', 'Payment Issue', 'Scammer', 'Rent Sangla', 'Rent Tangay', 'Sub-Lease', 'Identity Theft', 'Drug Related']
-const EMPTY_RECORD = { full_name: '', area: 'CDO', source: 'RN', reason: 'Bad Renter', notes: '' }
+const EMPTY_RECORD = { full_name: '', id_number: '', area: 'CDO', source: 'RN', reason: 'Bad Renter', notes: '' }
 
 export default function Blacklist() {
   const [customers, setCustomers] = useState([])
@@ -51,7 +51,7 @@ export default function Blacklist() {
 
   function openForm(record = null) {
     setEditing(record || {})
-    setForm(record ? { full_name: record.full_name, area: record.area || '', source: record.source || '', reason: record.reason, notes: record.notes || '' } : EMPTY_RECORD)
+    setForm(record ? { full_name: record.full_name, id_number: record.id_number || '', area: record.area || '', source: record.source || '', reason: record.reason, notes: record.notes || '' } : EMPTY_RECORD)
     setError('')
   }
 
@@ -85,14 +85,14 @@ export default function Blacklist() {
   const reasons = [...new Set([...REASONS, ...records.map((record) => record.reason)])]
   const visibleRecords = records
     .filter((record) => !reasonFilter || record.reason === reasonFilter)
-    .filter((record) => matchesSearch(search, record.full_name, record.reason, record.area, AREAS[record.area], record.source, record.notes))
+    .filter((record) => matchesSearch(search, record.full_name, record.id_number, record.reason, record.area, AREAS[record.area], record.source, record.notes))
   const visibleCustomers = customers.filter((customer) => matchesSearch(search, customer.full_name, customer.email, customer.phone))
 
   return (
     <Layout>
       <PageHeader
         title="Blacklist"
-        description="Pardz's list of renters not to transact with, and customer accounts that are blocked from logging in. Customers whose name matches a record are flagged on the Customers page."
+        description="Pardz's list of renters not to transact with, and customer accounts that are blocked from logging in. A customer whose ID number is on the list cannot book; a customer whose name matches is flagged for review."
         actions={(
           <button onClick={() => openForm()} className="btn-primary px-4 py-2 text-sm flex items-center gap-2">
             <Plus size={16} /> Add to list
@@ -103,13 +103,14 @@ export default function Blacklist() {
       {editing && (
         <Modal
           title={editing.id ? `Edit · ${editing.full_name}` : 'Add to blacklist'}
-          description="Customers whose name matches this record are flagged for review."
+          description="A customer with this ID number cannot book. A customer with a matching name is flagged for review."
           onClose={() => { if (!busy) setEditing(null) }}
           size="max-w-lg"
         >
           <form onSubmit={saveRecord} className="flex flex-col gap-3">
             {error && <p role="alert" className="text-sm" style={{ color: 'var(--danger)' }}>{error}</p>}
             <label className="flex flex-col gap-1 text-sm">Full name<input required autoFocus className="px-3 py-2" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} /></label>
+            <label className="flex flex-col gap-1 text-sm">ID number<input required={!editing.id || Boolean(editing.id_number)} maxLength={100} className="px-3 py-2" placeholder="Driver's license, passport or other ID number" value={form.id_number} onChange={(e) => setForm({ ...form, id_number: e.target.value })} /></label>
             <div className="grid grid-cols-2 gap-3">
               <label className="flex flex-col gap-1 text-sm">Area
                 <select className="px-3 py-2" value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })}>
@@ -139,7 +140,7 @@ export default function Blacklist() {
       )}
 
       <FilterBar>
-        <SearchBar value={search} onChange={setSearch} placeholder="Search name, reason, or area" />
+        <SearchBar value={search} onChange={setSearch} placeholder="Search name, ID number, reason, or area" />
         <select value={reasonFilter} onChange={(e) => setReasonFilter(e.target.value)} className="px-3 py-2 text-sm" aria-label="Filter by reason">
           <option value="">All reasons</option>
           {reasons.map((reason) => <option key={reason}>{reason}</option>)}
@@ -155,6 +156,7 @@ export default function Blacklist() {
                 <thead><tr className="text-left" style={{ color: 'var(--text-muted)' }}>
                   <th className="py-3 px-5 font-medium">#</th>
                   <th className="py-3 px-5 font-medium">Name</th>
+                  <th className="py-3 px-5 font-medium">ID number</th>
                   <th className="py-3 px-5 font-medium">Area</th>
                   <th className="py-3 px-5 font-medium">Source</th>
                   <th className="py-3 px-5 font-medium">Reason</th>
@@ -165,6 +167,7 @@ export default function Blacklist() {
                     <tr key={record.id} style={{ borderTop: '1px solid var(--border-soft)' }}>
                       <td className="py-3 px-5" style={{ color: 'var(--text-muted)' }}>{index + 1}</td>
                       <td className="py-3 px-5 font-medium">{record.full_name}{record.notes && <span className="block text-xs font-normal" style={{ color: 'var(--text-muted)' }}>{record.notes}</span>}</td>
+                      <td className="py-3 px-5 whitespace-nowrap">{record.id_number || '—'}</td>
                       <td className="py-3 px-5" title={AREAS[record.area]}>{record.area || '—'}</td>
                       <td className="py-3 px-5" title={SOURCES[record.source]}>{record.source || '—'}</td>
                       <td className="py-3 px-5"><span className="badge badge-rejected">{record.reason}</span></td>
@@ -174,7 +177,7 @@ export default function Blacklist() {
                       </td>
                     </tr>
                   ))}
-                  {visibleRecords.length === 0 && <tr><td colSpan={6} className="py-8 text-center" style={{ color: 'var(--text-muted)' }}>{records.length ? 'No records match this search.' : 'No blacklist records yet.'}</td></tr>}
+                  {visibleRecords.length === 0 && <tr><td colSpan={7} className="py-8 text-center" style={{ color: 'var(--text-muted)' }}>{records.length ? 'No records match this search.' : 'No blacklist records yet.'}</td></tr>}
                 </tbody>
               </table>
             </div>

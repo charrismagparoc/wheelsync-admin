@@ -45,7 +45,7 @@ export default function Bookings() {
       ])
       setBookings(bookingList)
       setStaff(staffList)
-      setBlacklistMatches(Object.fromEntries(matches.map((match) => [match.customer_id, match.record])))
+      setBlacklistMatches(Object.fromEntries(matches.map((match) => [match.customer_id, { ...match.record, matched_by: match.matched_by }])))
     } catch (error) {
       setActionError(error.message || 'Unable to load bookings.')
     }
@@ -206,9 +206,15 @@ export default function Bookings() {
                     <p className="font-medium">{booking.profiles?.full_name}</p>
                     {booking.profiles?.is_blacklisted && <span className="badge badge-rejected mt-1">Blacklisted</span>}
                     {!booking.profiles?.is_blacklisted && blacklistMatches[booking.profiles?.id] && (
-                      <span className="badge badge-pending mt-1" title={`Matches "${blacklistMatches[booking.profiles?.id].full_name}" on Pardz's blacklist`}>
-                        On blacklist record · {blacklistMatches[booking.profiles?.id].reason}
-                      </span>
+                      blacklistMatches[booking.profiles?.id].matched_by === 'id_number' ? (
+                        <span className="badge badge-rejected mt-1" title={`ID number ${blacklistMatches[booking.profiles?.id].id_number} is on Pardz's blacklist (${blacklistMatches[booking.profiles?.id].full_name}). This booking can't be accepted.`}>
+                          Blacklisted ID · {blacklistMatches[booking.profiles?.id].reason}
+                        </span>
+                      ) : (
+                        <span className="badge badge-pending mt-1" title={`Name matches "${blacklistMatches[booking.profiles?.id].full_name}" on Pardz's blacklist. Check the ID before accepting.`}>
+                          Name on blacklist · {blacklistMatches[booking.profiles?.id].reason}
+                        </span>
+                      )
                     )}
                     <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{booking.profiles?.phone} · Age {booking.profiles?.age ?? 'Not provided'}</p>
                     <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{booking.profiles?.email}</p>

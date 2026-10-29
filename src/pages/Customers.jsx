@@ -34,10 +34,12 @@ function churnDetails(features) {
   return `Last rental: ${features.days_since_last_rental} days ago; rentals: ${features.total_rentals_completed}; average gap: ${features.avg_days_between_rentals} days; late-return rate: ${Math.round(features.late_return_rate * 100)}%; preferred service: ${features.preferred_service_type.replace('_', ' ')}; customer for ${features.customer_tenure_days} days`
 }
 
-// Blacklisted = the account is blocked. A name match with Pardz's blacklist is flagged for the admin to review.
+// Blacklisted = the account is blocked. An ID number on Pardz's blacklist can't book;
+// a name-only match is flagged for the admin to review.
 function standing(customer) {
   if (customer.is_blacklisted) return { label: 'Blacklisted', badge: 'badge-rejected' }
-  if (customer.blacklistMatch) return { label: 'On blacklist record', badge: 'badge-pending' }
+  if (customer.blacklistMatch?.matched_by === 'id_number') return { label: 'Blacklisted ID', badge: 'badge-rejected' }
+  if (customer.blacklistMatch) return { label: 'Name on blacklist', badge: 'badge-pending' }
   return { label: 'Good standing', badge: 'badge-accepted' }
 }
 
@@ -65,7 +67,7 @@ export default function Customers() {
         api.get('/admin/churn/predictions'), // Random Forest results from the backend
         api.get('/admin/customers/blacklist-matches'),
       ])
-      const matchByCustomer = Object.fromEntries(matches.map((match) => [match.customer_id, match.record]))
+      const matchByCustomer = Object.fromEntries(matches.map((match) => [match.customer_id, { ...match.record, matched_by: match.matched_by }]))
       const churnByCustomer = Object.fromEntries(predictions.map((prediction) => [prediction.customer_id, prediction]))
       setCustomers(customerList.map((customer) => {
         const churn = churnByCustomer[customer.id] || NOT_RATED
@@ -246,7 +248,7 @@ export default function Customers() {
                   <td className="py-3 px-5">
                     <span className={`badge ${standing(c).badge}`}>{standing(c).label}</span>
                     {c.blacklistMatch && (
-                      <span className="block text-xs mt-1" style={{ color: 'var(--text-muted)' }} title={`Matches "${c.blacklistMatch.full_name}" on Pardz's blacklist`}>
+                      <span className="block text-xs mt-1" style={{ color: 'var(--text-muted)' }} title={`${c.blacklistMatch.matched_by === 'id_number' ? `ID number ${c.blacklistMatch.id_number}` : 'Name'} matches "${c.blacklistMatch.full_name}" on Pardz's blacklist`}>
                         {c.blacklistMatch.reason}{c.blacklistMatch.area ? ` · ${c.blacklistMatch.area}` : ''}
                       </span>
                     )}
