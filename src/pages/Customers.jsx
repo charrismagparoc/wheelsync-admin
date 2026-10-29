@@ -11,13 +11,9 @@ import { printCustomerDocuments } from '../lib/print'
 
 const AT_RISK = 'At Risk of Churn'
 
-// Sort menu. Churn risk: highest percentage first; customers not rated yet go last.
+// Customers are listed by churn risk, highest percentage first; customers not rated yet go last.
 const risk = (customer) => customer.churn?.probability ?? -1
-const SORTS = {
-  risk_low: { label: 'Lowest risk', compare: (a, b) => (risk(a) < 0) - (risk(b) < 0) || risk(a) - risk(b) || a.full_name.localeCompare(b.full_name) },
-  name: { label: 'Name (A–Z)', compare: (a, b) => a.full_name.localeCompare(b.full_name) },
-  newest: { label: 'Newest', compare: (a, b) => new Date(b.created_at) - new Date(a.created_at) },
-}
+const byRisk = (a, b) => risk(b) - risk(a) || a.full_name.localeCompare(b.full_name)
 
 // Churn prediction dropdown on the filter bar.
 const CHURN_FILTERS = {
@@ -54,7 +50,6 @@ export default function Customers() {
   const [savingVerification, setSavingVerification] = useState(false)
   const [needsReviewOnly, setNeedsReviewOnly] = useState(false)
   const [churnFilter, setChurnFilter] = useState('all') // churn prediction dropdown
-  const [sortBy, setSortBy] = useState('newest')
   const [search, setSearch] = useState('')
   const [showChurnInfo, setShowChurnInfo] = useState(false)
 
@@ -89,7 +84,7 @@ export default function Customers() {
     ? customers.filter((customer) => customer.verification_status === 'pending')
     : customers
   ).filter((customer) => CHURN_FILTERS[churnFilter].match(customer.churn))
-    .sort(SORTS[sortBy].compare)
+    .sort(byRisk)
     .filter((customer) => matchesSearch(search, customer.full_name, customer.email, customer.phone, customer.verification_status, customer.churn?.label, customer.churn?.valuable ? 'valuable at risk' : '', standing(customer).label, customer.blacklistMatch?.reason))
 
   async function deleteCustomer(customer) {
@@ -190,9 +185,6 @@ export default function Customers() {
         />
       )}>
         <SearchBar value={search} onChange={setSearch} placeholder="Search name, email, phone, verification, or churn status" />
-        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="px-3 py-2 text-sm" aria-label="Sort customers">
-          {Object.entries(SORTS).map(([key, sort]) => <option key={key} value={key}>{sort.label}</option>)}
-        </select>
         <select value={churnFilter} onChange={(e) => setChurnFilter(e.target.value)} className="px-3 py-2 text-sm" aria-label="Filter by churn prediction">
           {Object.entries(CHURN_FILTERS).map(([key, filter]) => (
             <option key={key} value={key}>{filter.label} ({customers.filter((c) => filter.match(c.churn)).length})</option>
