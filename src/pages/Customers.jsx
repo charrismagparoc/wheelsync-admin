@@ -14,10 +14,10 @@ const AT_RISK = 'At Risk of Churn'
 // Sort menu. Churn risk: highest percentage first; customers not rated yet go last.
 const risk = (customer) => customer.churn?.probability ?? -1
 const SORTS = {
-  risk: { label: 'Churn risk: highest first', compare: (a, b) => risk(b) - risk(a) || a.full_name.localeCompare(b.full_name) },
-  risk_low: { label: 'Churn risk: lowest first', compare: (a, b) => (risk(a) < 0) - (risk(b) < 0) || risk(a) - risk(b) || a.full_name.localeCompare(b.full_name) },
-  name: { label: 'Name A–Z', compare: (a, b) => a.full_name.localeCompare(b.full_name) },
-  newest: { label: 'Newest customers first', compare: (a, b) => new Date(b.created_at) - new Date(a.created_at) },
+  risk: { label: 'Highest risk', compare: (a, b) => risk(b) - risk(a) || a.full_name.localeCompare(b.full_name) },
+  risk_low: { label: 'Lowest risk', compare: (a, b) => (risk(a) < 0) - (risk(b) < 0) || risk(a) - risk(b) || a.full_name.localeCompare(b.full_name) },
+  name: { label: 'Name (A–Z)', compare: (a, b) => a.full_name.localeCompare(b.full_name) },
+  newest: { label: 'Newest', compare: (a, b) => new Date(b.created_at) - new Date(a.created_at) },
 }
 
 // Churn prediction dropdown on the filter bar.

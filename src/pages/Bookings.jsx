@@ -175,9 +175,9 @@ export default function Bookings() {
       <FilterBar tabs={<Tabs label="Booking status" value={filter} onChange={setFilter} options={FILTERS.map((status) => ({ key: status, label: status[0].toUpperCase() + status.slice(1) }))} />}>
         <SearchBar value={search} onChange={setSearch} placeholder="Search customer, vehicle, or plate" />
         <select aria-label="Sort bookings" value={sortBy} onChange={(event) => setSortBy(event.target.value)} className="px-3 py-2 text-sm">
-          <option value="upcoming">Date: upcoming first</option>
-          <option value="newest">Date: latest first</option>
-          <option value="customer">Customer: A to Z</option>
+          <option value="upcoming">Upcoming</option>
+          <option value="newest">Newest</option>
+          <option value="customer">Customer (A–Z)</option>
         </select>
       </FilterBar>
 

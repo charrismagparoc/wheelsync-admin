@@ -151,8 +151,8 @@ export default function Vehicles() {
       <FilterBar>
         <SearchBar value={search} onChange={setSearch} placeholder="Search make, model, plate, or status" />
         <select aria-label="Sort vehicles" value={sortBy} onChange={(event) => setSortBy(event.target.value)} className="px-3 py-2 text-sm">
-          <option value="availability">Available first</option>
-          <option value="name">Name: A to Z</option>
+          <option value="availability">Available</option>
+          <option value="name">Name (A–Z)</option>
         </select>
       </FilterBar>
 
