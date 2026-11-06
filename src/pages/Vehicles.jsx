@@ -43,7 +43,7 @@ export default function Vehicles() {
     .filter((vehicle) => `${vehicle.make} ${vehicle.model} ${vehicle.plate_number} ${vehicle.status}`.toLowerCase().includes(search.trim().toLowerCase()))
     .sort((first, second) => {
       if (sortBy === 'name') return `${first.make} ${first.model}`.localeCompare(`${second.make} ${second.model}`)
-      return (first.status === 'available' ? 0 : 1) - (second.status === 'available' ? 0 : 1)
+      return (first.status === 'maintenance' ? 1 : 0) - (second.status === 'maintenance' ? 1 : 0)
     })
 
   async function addVehicle(e) {
@@ -179,11 +179,10 @@ export default function Vehicles() {
                 </td>
                 <td className="py-3 px-4">{vehicle.plate_number}</td>
                 <td className="py-3 px-4">
-                  <select value={vehicle.status} onChange={(event) => updateStatus(vehicle.id, event.target.value)} className="px-2 py-1.5 text-xs">
+                  {/* Only maintenance hides a car from customers. Rented dates show in the next column and are blocked on the calendar. */}
+                  <select value={vehicle.status === 'maintenance' ? 'maintenance' : 'available'} onChange={(event) => updateStatus(vehicle.id, event.target.value)} className="px-2 py-1.5 text-xs">
                     <option value="available">Available</option>
-                    <option value="rented">Rented</option>
                     <option value="maintenance">Maintenance</option>
-                    <option value="cleaning">Cleaning / inspection</option>
                   </select>
                 </td>
                 <td className="py-3 px-4 align-top">
