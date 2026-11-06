@@ -5,6 +5,7 @@ import { subscribe } from '../lib/realtime'
 import Layout from '../components/Layout'
 import { PageHeader, FilterBar, Tabs } from '../components/PageParts'
 import SearchBar from '../components/SearchBar'
+import { SafeImage } from '../components/FilePreview'
 import { matchesSearch } from '../lib/search'
 import { printRentalPack } from '../lib/print'
 
@@ -145,7 +146,14 @@ function PhotoViewer({ photos, index, onClose, onMove }) {
       <button onClick={onClose} className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white" aria-label="Close"><X size={20} /></button>
       {photos.length > 1 && <button onClick={(event) => { event.stopPropagation(); onMove(-1) }} className="absolute left-4 rounded-full bg-white/10 p-2 text-white" aria-label="Previous photo"><ChevronLeft size={24} /></button>}
       <figure className="flex max-h-full flex-col items-center" onClick={(event) => event.stopPropagation()}>
-        <img src={photos[index]} alt={`Damage photo ${index + 1}`} className="max-h-[80vh] max-w-full rounded-lg object-contain" />
+        <SafeImage
+          src={photos[index]}
+          alt={`Damage photo ${index + 1}`}
+          className="max-h-[80vh] max-w-full rounded-lg object-contain"
+          fallbackClassName="h-64 w-80 max-w-full rounded-lg"
+          fallbackText="This photo is no longer on the server."
+          showText
+        />
         <figcaption className="mt-3 text-sm text-white/80">Photo {index + 1} of {photos.length}</figcaption>
       </figure>
       {photos.length > 1 && <button onClick={(event) => { event.stopPropagation(); onMove(1) }} className="absolute right-4 rounded-full bg-white/10 p-2 text-white" aria-label="Next photo"><ChevronRight size={24} /></button>}
@@ -269,7 +277,7 @@ export default function Inspections() {
             <div className="flex flex-wrap gap-2">
               {photos.map((url, index) => (
                 <button key={url} onClick={() => setViewer({ photos, index })} className="overflow-hidden rounded-lg" style={{ border: '1px solid var(--border-soft)' }} aria-label={`Open damage photo ${index + 1}`}>
-                  <img src={url} alt="" loading="lazy" className="h-14 w-14 object-cover" />
+                  <SafeImage src={url} alt="" loading="lazy" className="h-14 w-14 object-cover" fallbackText="Photo no longer on the server" />
                 </button>
               ))}
             </div>

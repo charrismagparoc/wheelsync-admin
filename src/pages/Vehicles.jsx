@@ -6,6 +6,7 @@ import Layout from '../components/Layout'
 import SearchBar from '../components/SearchBar'
 import { PageHeader, FilterBar } from '../components/PageParts'
 import Modal from '../components/Modal'
+import { SafeImage } from '../components/FilePreview'
 
 const EMPTY_VEHICLE = { make: '', model: '', year: '', plate_number: '', description: '', image: null, image_url: '' }
 
@@ -172,7 +173,7 @@ export default function Vehicles() {
               <tr key={vehicle.id} style={{ borderTop: '1px solid var(--border-soft)' }}>
                 <td className="py-3 px-4">
                   <div className="flex items-center gap-3">
-                    {vehicle.image_url && <img src={vehicle.image_url} alt="" className="w-14 h-10 rounded object-cover" />}
+                    {vehicle.image_url && <SafeImage src={vehicle.image_url} alt="" className="w-14 h-10 rounded object-cover" fallbackText="Photo no longer on the server. Upload it again." />}
                     <div><p className="font-medium">{vehicle.make} {vehicle.model}</p>{vehicle.year && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{vehicle.year}</p>}{vehicle.description && <p className="mt-1 max-w-56 whitespace-normal text-xs" style={{ color: 'var(--text-muted)' }}>{vehicle.description}</p>}</div>
                   </div>
                 </td>

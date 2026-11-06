@@ -4,6 +4,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, ExternalLink, Phone } from 'lu
 import { api } from '../lib/api'
 import { subscribe } from '../lib/realtime'
 import Modal from './Modal'
+import { SafeImage } from './FilePreview'
 
 // Month calendar of the fleet; each day's border is filled with its colour:
 //   one car:      green = free, orange = a pending request, red = rented, grey = under maintenance
@@ -74,7 +75,7 @@ function CarDetails({ detail, entries, onClose }) {
 
         <section>
           <h3 className="text-sm font-semibold mb-1">Vehicle</h3>
-          {vehicle.image_url && <img src={vehicle.image_url} alt={vehicle.name} className="mb-2 h-36 w-full rounded-xl object-cover" />}
+          {vehicle.image_url && <SafeImage src={vehicle.image_url} alt={vehicle.name} className="mb-2 h-36 w-full rounded-xl object-cover" fallbackText="Photo no longer on the server" showText />}
           <Row label="Plate">{vehicle.plate_number}</Row>
           <Row label="Year">{vehicle.year}</Row>
           <Row label="Type">{vehicle.category}</Row>

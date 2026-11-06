@@ -7,6 +7,7 @@ import { PageHeader, FilterBar, Tabs } from '../components/PageParts'
 import SearchBar from '../components/SearchBar'
 import { matchesSearch } from '../lib/search'
 import ChurnExplainer from '../components/ChurnExplainer'
+import FilePreview from '../components/FilePreview'
 import { printCustomerDocuments } from '../lib/print'
 
 const AT_RISK = 'At Risk of Churn'
@@ -301,7 +302,7 @@ export default function Customers() {
                 ].map(([key, label]) => (
                   <div key={key} className="card p-3">
                     <p className="text-sm font-medium mb-2">{label}</p>
-                    {documents[key] ? <iframe title={label} src={documents[key]} className="w-full h-56 rounded-lg" /> : <div className="h-56 flex items-center justify-center rounded-lg text-sm" style={{ background: 'var(--bg-surface-2)', color: 'var(--text-muted)' }}>Document not submitted</div>}
+                    {documents[key] ? <FilePreview url={documents[key]} title={label} missingText="This file is no longer on the server. Ask the customer to upload it again." /> :<div className="h-56 flex items-center justify-center rounded-lg text-sm" style={{ background: 'var(--bg-surface-2)', color: 'var(--text-muted)' }}>Document not submitted</div>}
                   </div>
                 ))}
               </div>
