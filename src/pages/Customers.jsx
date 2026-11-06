@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Info, Printer } from 'lucide-react'
 import { api } from '../lib/api'
 import { subscribe } from '../lib/realtime'
@@ -45,6 +45,7 @@ export default function Customers() {
   const [loading, setLoading] = useState(true)
   const [selectedCustomer, setSelectedCustomer] = useState(null)
   const [documents, setDocuments] = useState({})
+  const [documentStatus, setDocumentStatus] = useState({}) // key -> 'ready' | 'missing' | 'error'
   const [documentLoading, setDocumentLoading] = useState(false)
   const [rejectingCustomer, setRejectingCustomer] = useState(null)
   const [rejectionReason, setRejectionReason] = useState('')
@@ -135,6 +136,7 @@ export default function Customers() {
   async function openCustomer(customer) {
     setSelectedCustomer(customer)
     setDocuments({})
+    setDocumentStatus({})
     setDocumentLoading(true)
     let signedDocuments = {}
     try {
@@ -145,6 +147,19 @@ export default function Customers() {
     setDocuments(signedDocuments)
     setDocumentLoading(false)
   }
+
+  const REQUIRED_DOCUMENTS = ['primaryId', 'secondId', 'address', 'income']
+  const reportDocument = useCallback((key, status) => {
+    setDocumentStatus((current) => (current[key] === status ? current : { ...current, [key]: status }))
+  }, [])
+  // Each preview gets the same callback on every render, so it only reports when its status really changes.
+  const documentReporters = useMemo(
+    () => Object.fromEntries(['primaryId', 'secondId', 'address', 'income', 'extra1', 'extra2'].map((key) => [key, (status) => reportDocument(key, status)])),
+    [reportDocument],
+  )
+  const missingOnServer = REQUIRED_DOCUMENTS.some((key) => documentStatus[key] === 'missing')
+  // Verify only after the admin can actually see all four documents.
+  const allDocumentsShown = !documentLoading && REQUIRED_DOCUMENTS.every((key) => documentStatus[key] === 'ready')
 
   function printRequirements() {
     const printWindow = window.open('', '_blank', 'width=900,height=700')
@@ -302,7 +317,7 @@ export default function Customers() {
                 ].map(([key, label]) => (
                   <div key={key} className="card p-3">
                     <p className="text-sm font-medium mb-2">{label}</p>
-                    {documents[key] ? <FilePreview url={documents[key]} title={label} missingText="This file is no longer on the server. Ask the customer to upload it again." /> :<div className="h-56 flex items-center justify-center rounded-lg text-sm" style={{ background: 'var(--bg-surface-2)', color: 'var(--text-muted)' }}>Document not submitted</div>}
+                    {documents[key] ? <FilePreview url={documents[key]} title={label} missingText="This file is no longer on the server. Ask the customer to upload it again." onStatus={documentReporters[key]} /> :<div className="h-56 flex items-center justify-center rounded-lg text-sm" style={{ background: 'var(--bg-surface-2)', color: 'var(--text-muted)' }}>Document not submitted</div>}
                   </div>
                 ))}
               </div>
@@ -310,13 +325,38 @@ export default function Customers() {
             <div className="mt-4 flex justify-end">
               <button onClick={printRequirements} disabled={documentLoading || !Object.values(documents).some(Boolean)} className="btn-ghost inline-flex items-center gap-2 px-4 py-2 text-sm"><Printer size={16} /> Print submitted requirements</button>
             </div>
-            <div className="flex justify-end gap-2 mt-5">
-              {selectedCustomer.verification_status !== 'verified' && <>
-                <button onClick={() => { setRejectingCustomer(selectedCustomer); setRejectionReason(''); setVerificationError('') }} className="btn-ghost px-4 py-2 text-sm">Reject documents</button>
-                <button onClick={() => reviewVerification(selectedCustomer, 'verified')} disabled={savingVerification || !selectedCustomer.id_photo_path || !selectedCustomer.second_id_photo_path || !selectedCustomer.proof_of_address_path || !selectedCustomer.proof_of_income_path} className="btn-primary px-4 py-2 text-sm">{savingVerification ? 'Saving…' : 'Verify customer'}</button>
-                {(!selectedCustomer.id_photo_path || !selectedCustomer.second_id_photo_path || !selectedCustomer.proof_of_address_path || !selectedCustomer.proof_of_income_path) && <p className="text-xs self-center" style={{ color: 'var(--warning)' }}>All four documents are required before verification.</p>}
-              </>}
-              {selectedCustomer.verification_status === 'verified' && <span className="text-sm self-center" style={{ color: 'var(--success)' }}>Documents verified</span>}
+            <div className="flex flex-wrap items-center justify-end gap-2 mt-5">
+              {selectedCustomer.verification_status === 'rejected' && (
+                <p className="mr-auto text-sm" style={{ color: 'var(--text-muted)' }}>
+                  Documents rejected. The customer has been asked to upload new ones; you get a notification when they do.
+                </p>
+              )}
+              {selectedCustomer.verification_status !== 'verified' && (() => {
+                const notSubmitted = !selectedCustomer.id_photo_path || !selectedCustomer.second_id_photo_path || !selectedCustomer.proof_of_address_path || !selectedCustomer.proof_of_income_path
+                return <>
+                  {notSubmitted && <p className="text-xs" style={{ color: 'var(--warning)' }}>All four documents are required before verification.</p>}
+                  {!notSubmitted && missingOnServer && (
+                    <p className="text-xs" style={{ color: 'var(--warning)' }}>
+                      {selectedCustomer.verification_status === 'rejected'
+                        ? 'Some documents are missing on the server. Wait for the customer to upload them again.'
+                        : 'Some documents are missing on the server. Reject them so the customer uploads them again.'}
+                    </p>
+                  )}
+                  {/* Already rejected: no need to reject again until the customer sends new documents. */}
+                  {selectedCustomer.verification_status !== 'rejected' && (
+                    <button onClick={() => { setRejectingCustomer(selectedCustomer); setRejectionReason(''); setVerificationError('') }} className="btn-ghost px-4 py-2 text-sm">Reject documents</button>
+                  )}
+                  <button
+                    onClick={() => reviewVerification(selectedCustomer, 'verified')}
+                    disabled={savingVerification || notSubmitted || !allDocumentsShown}
+                    title={missingOnServer ? 'You cannot verify documents that are missing on the server.' : undefined}
+                    className="btn-primary px-4 py-2 text-sm"
+                  >
+                    {savingVerification ? 'Saving…' : 'Verify customer'}
+                  </button>
+                </>
+              })()}
+              {selectedCustomer.verification_status === 'verified' && <span className="text-sm" style={{ color: 'var(--success)' }}>Documents verified</span>}
             </div>
             {rejectingCustomer?.id === selectedCustomer.id && (
               <div className="card p-4 grid gap-3">

@@ -7,10 +7,16 @@ import { FileWarning, ImageOff, RefreshCw } from 'lucide-react'
 const BOX = 'flex flex-col items-center justify-center gap-2 rounded-lg px-4 text-center text-sm'
 
 // A photo or PDF document. Loaded first so a failed request can be shown properly.
-export default function FilePreview({ url, title, missingText = 'This file is no longer on the server.', className = 'h-56' }) {
+// onStatus (optional) hears 'ready', 'missing' (not on the server) or 'error' once the file has loaded or failed.
+export default function FilePreview({ url, title, missingText = 'This file is no longer on the server.', className = 'h-56', onStatus }) {
   const [attempt, setAttempt] = useState(0)
   const [result, setResult] = useState({ key: null })
   const key = `${url}#${attempt}`
+  const status = result.key !== key ? null : result.error === undefined ? 'ready' : result.error === 404 ? 'missing' : 'error'
+
+  useEffect(() => {
+    if (status) onStatus?.(status)
+  }, [status, onStatus])
 
   useEffect(() => {
     let active = true
