@@ -221,7 +221,10 @@ export default function Inspections() {
   }
 
   function inspectionPanel(booking, type, title) {
-    const inspection = booking.inspections.find((item) => item.type === type)
+    // Staff can save the same inspection more than once: show the submission still waiting for
+    // verification, otherwise the latest one (the list is oldest first).
+    const submissions = booking.inspections.filter((item) => item.type === type)
+    const inspection = submissions.find((item) => !item.verified_at) ?? submissions[submissions.length - 1]
     if (!inspection) {
       return (
         <Panel key={type} icon={ClipboardCheck} title={title} status={<Pill>Not done</Pill>}>
@@ -250,6 +253,7 @@ export default function Inspections() {
         )}
       >
         <dl>
+          {submissions.length > 1 && <Detail label="Submissions"><span style={{ color: 'var(--warning)' }}>{submissions.length} (showing {inspection.verified_at ? 'latest' : 'the one to verify'})</span></Detail>}
           <Detail label="Done by">{account}{inspection.staff_name && inspection.staff_name !== account ? <span className="block font-normal" style={{ color: 'var(--text-faint)' }}>signed as {inspection.staff_name}</span> : null}</Detail>
           <Detail label="Date">{formatDateTime(inspection.created_at)}</Detail>
           <Detail label="Fuel">{inspection.fuel_level || '—'}</Detail>
