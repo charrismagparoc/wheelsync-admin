@@ -7,10 +7,31 @@ import Modal from '../components/Modal'
 import SearchBar from '../components/SearchBar'
 import { matchesSearch } from '../lib/search'
 
+const PAGE_SIZE = 20 // NEW: rows shown per page in each table
+
 const AREAS = { CDO: 'Cagayan de Oro', CEB: 'Cebu', DVO: 'Davao' }
 const SOURCES = { RN: 'RN (as written on the list)', FB: 'Facebook' }
 const REASONS = ['Bad Renter', 'Payment Issue', 'Scammer', 'Rent Sangla', 'Rent Tangay', 'Sub-Lease', 'Identity Theft', 'Drug Related']
 const EMPTY_RECORD = { full_name: '', id_number: '', area: 'CDO', source: 'RN', reason: 'Bad Renter', notes: '' }
+
+// NEW: small Previous / Next bar used under both tables
+function Pager({ page, total, onChange }) {
+  if (total === 0) return null
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount)
+  const from = (currentPage - 1) * PAGE_SIZE + 1
+  const to = Math.min(currentPage * PAGE_SIZE, total)
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm" style={{ borderTop: '1px solid var(--border-soft)', color: 'var(--text-muted)' }}>
+      <span>Showing {from}–{to} of {total}</span>
+      <div className="flex items-center gap-2">
+        <button onClick={() => onChange(currentPage - 1)} disabled={currentPage <= 1} className="btn-ghost px-3 py-1.5 text-xs disabled:opacity-40">Previous</button>
+        <span>Page {currentPage} of {pageCount}</span>
+        <button onClick={() => onChange(currentPage + 1)} disabled={currentPage >= pageCount} className="btn-ghost px-3 py-1.5 text-xs disabled:opacity-40">Next</button>
+      </div>
+    </div>
+  )
+}
 
 export default function Blacklist() {
   const [customers, setCustomers] = useState([])
@@ -22,6 +43,8 @@ export default function Blacklist() {
   const [form, setForm] = useState(EMPTY_RECORD)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [recordsPage, setRecordsPage] = useState(1) // NEW: page of the blacklist records table
+  const [blockedPage, setBlockedPage] = useState(1) // NEW: page of the blocked accounts table
 
   async function load() {
     setLoading(true)
@@ -39,6 +62,12 @@ export default function Blacklist() {
   }
 
   useEffect(() => { load() }, [])
+
+  // NEW: go back to page 1 whenever the search or reason filter changes
+  useEffect(() => {
+    setRecordsPage(1)
+    setBlockedPage(1)
+  }, [search, reasonFilter])
 
   async function removeFromBlacklist(id) {
     try {
@@ -87,6 +116,15 @@ export default function Blacklist() {
     .filter((record) => !reasonFilter || record.reason === reasonFilter)
     .filter((record) => matchesSearch(search, record.full_name, record.id_number, record.reason, record.area, AREAS[record.area], record.source, record.notes))
   const visibleCustomers = customers.filter((customer) => matchesSearch(search, customer.full_name, customer.email, customer.phone))
+
+  // NEW: slices for the current page of each table
+  const recordsPageCount = Math.max(1, Math.ceil(visibleRecords.length / PAGE_SIZE))
+  const currentRecordsPage = Math.min(recordsPage, recordsPageCount)
+  const pagedRecords = visibleRecords.slice((currentRecordsPage - 1) * PAGE_SIZE, currentRecordsPage * PAGE_SIZE)
+
+  const blockedPageCount = Math.max(1, Math.ceil(visibleCustomers.length / PAGE_SIZE))
+  const currentBlockedPage = Math.min(blockedPage, blockedPageCount)
+  const pagedCustomers = visibleCustomers.slice((currentBlockedPage - 1) * PAGE_SIZE, currentBlockedPage * PAGE_SIZE)
 
   return (
     <Layout>
@@ -163,9 +201,10 @@ export default function Blacklist() {
                   <th className="py-3 px-5 font-medium text-right">Actions</th>
                 </tr></thead>
                 <tbody>
-                  {visibleRecords.map((record, index) => (
+                  {/* CHANGED: shows only the current page; the # column continues the numbering across pages */}
+                  {pagedRecords.map((record, index) => (
                     <tr key={record.id} style={{ borderTop: '1px solid var(--border-soft)' }}>
-                      <td className="py-3 px-5" style={{ color: 'var(--text-muted)' }}>{index + 1}</td>
+                      <td className="py-3 px-5" style={{ color: 'var(--text-muted)' }}>{(currentRecordsPage - 1) * PAGE_SIZE + index + 1}</td>
                       <td className="py-3 px-5 font-medium">{record.full_name}{record.notes && <span className="block text-xs font-normal" style={{ color: 'var(--text-muted)' }}>{record.notes}</span>}</td>
                       <td className="py-3 px-5 whitespace-nowrap">{record.id_number || '—'}</td>
                       <td className="py-3 px-5" title={AREAS[record.area]}>{record.area || '—'}</td>
@@ -180,6 +219,8 @@ export default function Blacklist() {
                   {visibleRecords.length === 0 && <tr><td colSpan={7} className="py-8 text-center" style={{ color: 'var(--text-muted)' }}>{records.length ? 'No records match this search.' : 'No blacklist records yet.'}</td></tr>}
                 </tbody>
               </table>
+              {/* NEW: page controls for the records table */}
+              <Pager page={currentRecordsPage} total={visibleRecords.length} onChange={setRecordsPage} />
             </div>
           </section>
 
@@ -194,7 +235,8 @@ export default function Blacklist() {
                   <th className="py-3 px-5 font-medium text-right">Action</th>
                 </tr></thead>
                 <tbody>
-                  {visibleCustomers.map((customer) => (
+                  {/* CHANGED: shows only the current page */}
+                  {pagedCustomers.map((customer) => (
                     <tr key={customer.id} style={{ borderTop: '1px solid var(--border-soft)' }}>
                       <td className="py-3 px-5">{customer.full_name}</td>
                       <td className="py-3 px-5">{customer.email || '—'}</td>
@@ -205,6 +247,8 @@ export default function Blacklist() {
                   {visibleCustomers.length === 0 && <tr><td colSpan={4} className="py-8 text-center" style={{ color: 'var(--text-muted)' }}>{customers.length ? 'No blocked accounts match this search.' : 'No customer accounts are blocked. Use Blacklist on the Customers page to block one.'}</td></tr>}
                 </tbody>
               </table>
+              {/* NEW: page controls for the blocked accounts table */}
+              <Pager page={currentBlockedPage} total={visibleCustomers.length} onChange={setBlockedPage} />
             </div>
           </section>
         </div>
