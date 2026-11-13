@@ -11,6 +11,7 @@ import FilePreview from '../components/FilePreview'
 import { printCustomerDocuments } from '../lib/print'
 
 const AT_RISK = 'At Risk of Churn'
+const PAGE_SIZE = 20 // NEW: customers shown per page
 
 // "All customers": the newest account first. A churn category: highest churn percentage first, then newest.
 const risk = (customer) => customer.churn?.probability ?? -1
@@ -55,6 +56,7 @@ export default function Customers() {
   const [churnFilter, setChurnFilter] = useState('all') // churn prediction dropdown
   const [search, setSearch] = useState('')
   const [showChurnInfo, setShowChurnInfo] = useState(false)
+  const [page, setPage] = useState(1) // NEW: current page number
 
   async function load() {
     setLoading(true)
@@ -82,6 +84,11 @@ export default function Customers() {
     return subscribe('notifications', load)
   }, [])
 
+  // NEW: go back to page 1 whenever a filter or the search changes
+  useEffect(() => {
+    setPage(1)
+  }, [search, churnFilter, needsReviewOnly])
+
   const pendingReviews = customers.filter((customer) => customer.verification_status === 'pending').length
   const visibleCustomers = (needsReviewOnly
     ? customers.filter((customer) => customer.verification_status === 'pending')
@@ -89,6 +96,11 @@ export default function Customers() {
   ).filter((customer) => CHURN_FILTERS[churnFilter].match(customer.churn))
     .sort(churnFilter === 'all' ? byNewest : byRisk)
     .filter((customer) => matchesSearch(search, customer.full_name, customer.email, customer.phone, customer.verification_status, customer.churn?.label, customer.churn?.valuable ? 'valuable at risk' : '', standing(customer).label, customer.blacklistMatch?.reason))
+
+  // NEW: split the filtered list into pages
+  const pageCount = Math.max(1, Math.ceil(visibleCustomers.length / PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount)
+  const pagedCustomers = visibleCustomers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   async function deleteCustomer(customer) {
     if (!window.confirm(`Delete ${customer.full_name} and all of their booking history? This can't be undone.`)) return
@@ -226,7 +238,8 @@ export default function Customers() {
               </tr>
             </thead>
             <tbody>
-              {visibleCustomers.map((c) => (
+              {/* CHANGED: shows only the current page */}
+              {pagedCustomers.map((c) => (
                 <tr key={c.id} style={{ borderTop: '1px solid var(--border-soft)' }}>
                   <td className="py-3 px-5"><button onClick={() => openCustomer(c)} className="font-medium hover:underline" style={{ color: 'var(--nebula-3)' }}>{c.full_name}</button></td>
                   <td className="py-3 px-5">{c.email}</td>
@@ -276,6 +289,32 @@ export default function Customers() {
               )}
             </tbody>
           </table>
+
+          {/* NEW: page controls */}
+          {visibleCustomers.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm" style={{ borderTop: '1px solid var(--border-soft)', color: 'var(--text-muted)' }}>
+              <span>
+                Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, visibleCustomers.length)} of {visibleCustomers.length}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage(currentPage - 1)}
+                  disabled={currentPage <= 1}
+                  className="btn-ghost px-3 py-1.5 text-xs disabled:opacity-40"
+                >
+                  Previous
+                </button>
+                <span>Page {currentPage} of {pageCount}</span>
+                <button
+                  onClick={() => setPage(currentPage + 1)}
+                  disabled={currentPage >= pageCount}
+                  className="btn-ghost px-3 py-1.5 text-xs disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
       {selectedCustomer && (
@@ -317,7 +356,7 @@ export default function Customers() {
                 ].map(([key, label]) => (
                   <div key={key} className="card p-3">
                     <p className="text-sm font-medium mb-2">{label}</p>
-                    {documents[key] ? <FilePreview url={documents[key]} title={label} missingText="This file is no longer on the server. Ask the customer to upload it again." onStatus={documentReporters[key]} /> :<div className="h-56 flex items-center justify-center rounded-lg text-sm" style={{ background: 'var(--bg-surface-2)', color: 'var(--text-muted)' }}>Document not submitted</div>}
+                    {documents[key] ? <FilePreview url={documents[key]} title={label} missingText="This file is no longer on the server. Ask the customer to upload it again." onStatus={documentReporters[key]} /> : <div className="h-56 flex items-center justify-center rounded-lg text-sm" style={{ background: 'var(--bg-surface-2)', color: 'var(--text-muted)' }}>Document not submitted</div>}
                   </div>
                 ))}
               </div>
