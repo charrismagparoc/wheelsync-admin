@@ -38,7 +38,7 @@ export default function Layout({ children }) {
   const [now, setNow] = useState(new Date())
   const [unreadNotifications, setUnreadNotifications] = useState(0)
   const [inspectionTodo, setInspectionTodo] = useState(0)
-  const [pendingBookings, setPendingBookings] = useState(0) // NEW: booking requests waiting for a decision
+  const [pendingBookings, setPendingBookings] = useState(0) // booking requests waiting for a decision
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000)
@@ -102,7 +102,7 @@ export default function Layout({ children }) {
     }
   }, [profile?.id])
 
-  // NEW: nav badge for booking requests that are still pending a decision.
+  // Nav badge for booking requests that are still pending a decision.
   useEffect(() => {
     if (!profile?.id) return undefined
     let active = true
@@ -122,7 +122,7 @@ export default function Layout({ children }) {
     }
   }, [profile?.id])
 
-  // CHANGED: each menu item shows its own count when there is something waiting.
+  // Each menu item shows its own count when there is something waiting.
   const navCount = (to) => {
     if (to === '/inspections') return inspectionTodo
     if (to === '/bookings') return pendingBookings
