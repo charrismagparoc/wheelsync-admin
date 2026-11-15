@@ -23,18 +23,19 @@ export function AuthProvider({ children }) {
       setLoading(false)
       return
     }
+    // Open the app straight away with the saved session, instead of waiting for the server.
+    setSession({ access_token: token })
+    setLoading(false)
+    // Confirm the account in the background. Only an invalid session is removed; a slow or
+    // unreachable server does not log the admin out.
     api.get('/auth/me')
       .then((me) => {
         if (me.role !== 'admin') return clearSession()
-        setSession({ access_token: token })
         setProfile(me)
       })
       .catch((error) => {
-        // Only drop the session when the server says it is invalid, not on a temporary network error.
         if (error.status === 401 || error.status === 403) clearSession()
-        else setSession({ access_token: token })
       })
-      .finally(() => setLoading(false))
   }, [])
 
   async function signInWithPassword(email, password) {
