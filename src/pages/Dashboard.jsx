@@ -104,7 +104,7 @@ export default function Dashboard() {
           <h2 id="rentals-heading" className="font-display font-semibold">Rentals per month · {chartYear}</h2>
           <p className="text-sm">{busiestMonth.count ? <>Busiest: <strong>{busiestMonth.month}</strong> · {busiestMonth.count} rental{busiestMonth.count === 1 ? '' : 's'}</> : 'No rentals yet this year.'}</p>
         </div>
-        <p className="text-xs mb-5" style={{ color: 'var(--text-muted)' }}>Accepted, ongoing and completed bookings plus recorded transactions, by start month. Hover a column for the exact number.</p>
+        <p className="text-xs mb-5" style={{ color: 'var(--text-muted)' }}>Accepted, ongoing and completed bookings, by start month. Hover a column for the exact number.</p>
         <MonthlyRentalsChart months={monthlyRentals} year={chartYear} />
       </section>
 
