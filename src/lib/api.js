@@ -1,6 +1,7 @@
 // Thin client for the WheelSync FastAPI backend.
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/+$/, '')
 const TOKEN_KEY = 'wheelsync-admin-token'
+const TIMEOUT_MS = 20000 // stop waiting after 20 seconds, so a slow server never freezes the page
 
 export const apiUrl = API_URL
 export const wsUrl = API_URL.replace(/^http/, 'ws')
@@ -55,11 +56,18 @@ async function request(method, path, { body, form, query } = {}) {
     if (qs) url += (url.includes('?') ? '&' : '?') + qs
   }
 
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
   let response
   try {
-    response = await fetch(url, { method, headers, body: payload })
-  } catch {
+    response = await fetch(url, { method, headers, body: payload, signal: controller.signal })
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new ApiError('The WheelSync server is taking too long to respond. It may be waking up; try again in a moment.', 0)
+    }
     throw new ApiError(`Cannot reach the WheelSync server at ${API_URL}. Check your connection and that the API is running.`, 0)
+  } finally {
+    clearTimeout(timer)
   }
 
   const data = response.status === 204 ? null : await response.json().catch(() => null)
