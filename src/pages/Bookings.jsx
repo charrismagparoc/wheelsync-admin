@@ -34,18 +34,21 @@ export default function Bookings() {
   const [reassignStaff, setReassignStaff] = useState('')
   const [editFor, setEditFor] = useState(null)
   const [blacklistMatches, setBlacklistMatches] = useState({}) // customer id -> matching record on Pardz's blacklist
+  const [sharedIds, setSharedIds] = useState({}) // customer id -> other customer accounts with the same ID number
 
   async function load() {
     setLoading(true)
     try {
-      const [bookingList, staffList, matches] = await Promise.all([
+      const [bookingList, staffList, matches, shared] = await Promise.all([
         api.get('/bookings', { status: filter, sort: 'created_desc' }),
         api.get('/admin/staff'),
         api.get('/admin/customers/blacklist-matches'),
+        api.get('/admin/customers/shared-ids'),
       ])
       setBookings(bookingList)
       setStaff(staffList)
       setBlacklistMatches(Object.fromEntries(matches.map((match) => [match.customer_id, { ...match.record, matched_by: match.matched_by }])))
+      setSharedIds(Object.fromEntries(shared.map((item) => [item.customer_id, item])))
     } catch (error) {
       setActionError(error.message || 'Unable to load bookings.')
     }
@@ -200,7 +203,10 @@ export default function Bookings() {
               </tr>
             </thead>
             <tbody>
-              {visibleBookings.map((booking) => (
+              {visibleBookings.map((booking) => {
+                const shared = sharedIds[booking.profiles?.id]
+                const sharedNames = shared?.shares_with.map((other) => other.full_name).join(', ')
+                return (
                 <tr key={booking.id} style={{ borderTop: '1px solid var(--border-soft)' }}>
                   <td className="py-3 px-4 align-top">
                     <p className="font-medium">{booking.profiles?.full_name}</p>
@@ -216,6 +222,18 @@ export default function Bookings() {
                         </span>
                       )
                     )}
+                    {shared && (
+                      shared.blacklisted_share ? (
+                        <span className="badge badge-rejected mt-1" title={`This ID number is also used by a blacklisted account (${shared.shares_with.filter((other) => other.is_blacklisted).map((other) => other.full_name).join(', ')}). Do not accept this booking.`}>
+                          Same ID as a blacklisted account
+                        </span>
+                      ) : (
+                        <span className="badge badge-pending mt-1" title={`Same ID number as: ${sharedNames}. Check the customer's ID before accepting.`}>
+                          Same ID as {shared.shares_with.length} other {shared.shares_with.length === 1 ? 'account' : 'accounts'}
+                        </span>
+                      )
+                    )}
+                    {shared && <p className="text-xs mt-1" style={{ color: shared.blacklisted_share ? 'var(--danger)' : 'var(--warning)' }}>{sharedNames}</p>}
                     <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{booking.profiles?.phone} · Age {booking.profiles?.age ?? 'Not provided'}</p>
                     <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{booking.profiles?.email}</p>
                   </td>
@@ -314,7 +332,8 @@ export default function Bookings() {
                     )}
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>
