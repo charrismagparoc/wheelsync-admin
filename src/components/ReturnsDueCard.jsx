@@ -4,6 +4,8 @@ import { api } from '../lib/api'
 import { subscribe } from '../lib/realtime'
 import { SERVICE_LABELS, TONES, copyText, formatDue, timeLeft } from '../lib/notificationKinds'
 
+const DISMISSED_KEY = 'wheelsync-returns-dismissed'
+
 function urgency(minutes) {
   if (minutes < 0) return { tone: 'danger', label: 'Overdue' }
   if (minutes <= 30) return { tone: 'danger', label: 'Due in 30 min' }
@@ -11,11 +13,27 @@ function urgency(minutes) {
   return { tone: 'muted', label: 'Later today' }
 }
 
+// The stage a rental is in. OK hides a rental for its current stage only, so it comes back at the next one.
+function stageOf(minutes) {
+  if (minutes <= 30) return '30m'
+  if (minutes <= 120) return '2h'
+  return 'day'
+}
+
+function readDismissed() {
+  try { return JSON.parse(localStorage.getItem(DISMISSED_KEY) || '{}') } catch { return {} }
+}
+
+function writeDismissed(map) {
+  try { localStorage.setItem(DISMISSED_KEY, JSON.stringify(map)) } catch { /* storage unavailable */ }
+}
+
 // Dashboard card: rentals due back soon, with the customer's name and number so the admin can call.
 export default function ReturnsDueCard({ className = 'mb-8', style }) {
   const [rows, setRows] = useState([])
   const [error, setError] = useState('')
   const [copied, setCopied] = useState('')
+  const [dismissed, setDismissed] = useState(readDismissed)
 
   const load = useCallback(async () => {
     try {
@@ -36,6 +54,16 @@ export default function ReturnsDueCard({ className = 'mb-8', style }) {
     }
   }, [load])
 
+  function isHidden(row) {
+    return Boolean(dismissed[`${row.booking_id}:${stageOf(row.minutes_left)}`])
+  }
+
+  function dismiss(row) {
+    const next = { ...dismissed, [`${row.booking_id}:${stageOf(row.minutes_left)}`]: true }
+    setDismissed(next)
+    writeDismissed(next)
+  }
+
   async function copy(row) {
     if (row.customer_phone && await copyText(row.customer_phone)) {
       setCopied(row.booking_id)
@@ -43,21 +71,25 @@ export default function ReturnsDueCard({ className = 'mb-8', style }) {
     }
   }
 
+  const visible = rows.filter((row) => !isHidden(row))
+
   return (
     <section className={`card p-5 ${className}`} style={style} aria-labelledby="returns-due-title">
       <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
         <div>
           <h2 id="returns-due-title" className="font-display font-semibold flex items-center gap-2"><AlarmClock size={18} style={{ color: 'var(--warning)' }} /> Returns due</h2>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Rented-out vehicles whose return time is within the next 24 hours. Before each return time, the customer and you get two reminders: one 2 hours before and one 30 minutes before. Use the number shown to call the customer.</p>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Rented-out vehicles whose return time is within the next 24 hours. Before each return time, the customer and you get two reminders: one 2 hours before and one 30 minutes before. Use the number shown to call the customer. Press OK to hide a rental; it appears again at the 2-hour and 30-minute reminders.</p>
         </div>
-        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{rows.length} {rows.length === 1 ? 'rental' : 'rentals'}</span>
+        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{visible.length} {visible.length === 1 ? 'rental' : 'rentals'}</span>
       </div>
       {error && <p role="alert" className="text-sm mb-3" style={{ color: 'var(--danger)' }}>{error}</p>}
-      {rows.length === 0 ? (
-        <p className="text-sm py-4 text-center rounded-xl" style={{ background: 'var(--bg-surface-2)', color: 'var(--text-muted)' }}>No vehicles are due back in the next 24 hours.</p>
+      {visible.length === 0 ? (
+        <p className="text-sm py-4 text-center rounded-xl" style={{ background: 'var(--bg-surface-2)', color: 'var(--text-muted)' }}>
+          {rows.length === 0 ? 'No vehicles are due back in the next 24 hours.' : 'All returns in view are acknowledged. They reappear at the next reminder.'}
+        </p>
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {rows.map((row) => {
+          {visible.map((row) => {
             const state = urgency(row.minutes_left)
             return (
               <article key={row.booking_id} className="rounded-xl p-4 flex flex-col gap-3" style={{ background: 'var(--bg-surface-2)', border: `1px solid ${state.tone === 'muted' ? 'var(--border-soft)' : TONES[state.tone].color}` }}>
@@ -88,9 +120,12 @@ export default function ReturnsDueCard({ className = 'mb-8', style }) {
                   <dt style={{ color: 'var(--text-muted)' }}>Staff in charge</dt><dd className="text-right">{row.staff_name || '—'}</dd>
                 </dl>
 
-                <div className="flex flex-wrap gap-1.5 text-[11px]">
-                  <span className="rounded-full px-2 py-0.5" style={row.reminder_2h_sent_at ? TONES.success : TONES.muted}>{row.reminder_2h_sent_at ? '✓ ' : ''}2-hour reminder</span>
-                  <span className="rounded-full px-2 py-0.5" style={row.reminder_30m_sent_at ? TONES.success : TONES.muted}>{row.reminder_30m_sent_at ? '✓ ' : ''}30-minute reminder</span>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap gap-1.5 text-[11px]">
+                    <span className="rounded-full px-2 py-0.5" style={row.reminder_2h_sent_at ? TONES.success : TONES.muted}>{row.reminder_2h_sent_at ? '✓ ' : ''}2-hour reminder</span>
+                    <span className="rounded-full px-2 py-0.5" style={row.reminder_30m_sent_at ? TONES.success : TONES.muted}>{row.reminder_30m_sent_at ? '✓ ' : ''}30-minute reminder</span>
+                  </div>
+                  <button onClick={() => dismiss(row)} className="btn-primary px-4 py-1.5 text-xs">OK</button>
                 </div>
               </article>
             )
