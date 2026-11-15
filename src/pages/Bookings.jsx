@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, CircleCheck, Clock, Eye, Mail, Pencil, Printer, UserRoundCog, X } from 'lucide-react'
+import { Ban, Check, CircleCheck, Clock, Eye, Mail, Pencil, Printer, UserRoundCog, X } from 'lucide-react'
 import { api } from '../lib/api'
 import { subscribe } from '../lib/realtime'
 import Layout from '../components/Layout'
@@ -11,6 +11,7 @@ import EditBookingModal from '../components/EditBookingModal'
 const FILTERS = ['all', 'pending', 'accepted', 'ongoing', 'completed', 'rejected', 'cancelled']
 const INSPECTION_STEPS = [['pre_rental', 'Pre-rental'], ['post_rental', 'Post-rental']]
 const EDITABLE = ['pending', 'rejected', 'accepted', 'ongoing']
+const CANCELLABLE = ['pending', 'rejected', 'accepted']
 
 function formatDateTime(value) {
   return new Date(value).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -38,19 +39,21 @@ export default function Bookings() {
 
   async function load() {
     setLoading(true)
-    try {
-      const [bookingList, staffList, matches, shared] = await Promise.all([
-        api.get('/bookings', { status: filter, sort: 'created_desc' }),
-        api.get('/admin/staff'),
-        api.get('/admin/customers/blacklist-matches'),
-        api.get('/admin/customers/shared-ids'),
-      ])
-      setBookings(bookingList)
-      setStaff(staffList)
-      setBlacklistMatches(Object.fromEntries(matches.map((match) => [match.customer_id, { ...match.record, matched_by: match.matched_by }])))
-      setSharedIds(Object.fromEntries(shared.map((item) => [item.customer_id, item])))
-    } catch (error) {
-      setActionError(error.message || 'Unable to load bookings.')
+    // Each request loads on its own, so a slow check (blacklist or shared-ID lookup) can't hide the bookings.
+    const [bookingResult, staffResult, matchResult, sharedResult] = await Promise.allSettled([
+      api.get('/bookings', { status: filter, sort: 'created_desc' }),
+      api.get('/admin/staff'),
+      api.get('/admin/customers/blacklist-matches'),
+      api.get('/admin/customers/shared-ids'),
+    ])
+    if (bookingResult.status === 'fulfilled') setBookings(bookingResult.value)
+    else setActionError(bookingResult.reason?.message || 'Unable to load bookings.')
+    if (staffResult.status === 'fulfilled') setStaff(staffResult.value)
+    if (matchResult.status === 'fulfilled') {
+      setBlacklistMatches(Object.fromEntries(matchResult.value.map((match) => [match.customer_id, { ...match.record, matched_by: match.matched_by }])))
+    }
+    if (sharedResult.status === 'fulfilled') {
+      setSharedIds(Object.fromEntries(sharedResult.value.map((item) => [item.customer_id, item])))
     }
     setLoading(false)
   }
@@ -77,6 +80,23 @@ export default function Bookings() {
       await api.post(`/bookings/${booking.id}/reject`, { reason })
       setRejectFor(null)
       setRejectionReason('')
+    } catch (error) {
+      setActionError(error.message)
+    }
+    await load()
+    setBusyBooking('')
+  }
+
+  async function cancelBooking(booking) {
+    if (!window.confirm(`Cancel the booking of ${booking.profiles?.full_name} for ${booking.vehicles?.make} ${booking.vehicles?.model}? The customer and the assigned staff will be notified, and the dates will be free again.`)) return
+    setBusyBooking(booking.id)
+    setActionError('')
+    setActionMessage('')
+    try {
+      await api.post(`/bookings/${booking.id}/cancel`)
+      setActionMessage(`Booking of ${booking.profiles?.full_name} cancelled. The customer was notified.`)
+      setAssignFor(null)
+      setReassignFor(null)
     } catch (error) {
       setActionError(error.message)
     }
@@ -318,6 +338,18 @@ export default function Bookings() {
                         className="btn-ghost mt-1.5 flex w-full items-center justify-center gap-1.5 px-2 py-2 text-xs"
                       >
                         <UserRoundCog size={14} /> Change staff
+                      </button>
+                    )}
+                    {CANCELLABLE.includes(booking.status) && (
+                      <button
+                        type="button"
+                        onClick={() => cancelBooking(booking)}
+                        disabled={busyBooking === booking.id}
+                        title="Cancel this booking. The dates become free again."
+                        className="btn-ghost mt-1.5 flex w-full items-center justify-center gap-1.5 px-2 py-2 text-xs"
+                        style={{ color: 'var(--danger)' }}
+                      >
+                        <Ban size={14} /> {busyBooking === booking.id ? 'Cancelling…' : 'Cancel booking'}
                       </button>
                     )}
                     {(booking.status === 'accepted' || booking.status === 'ongoing') && reassignFor === booking.id && (
